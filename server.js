@@ -85,12 +85,26 @@ app.get("/api/questions", (req, res) => {
   const isTutorial = q => q.tutorial === true || String(q.id || "").startsWith("tutorial-");
   const tutorials = qs.filter(isTutorial);
   const regular = qs.filter(q => !isTutorial(q));
-  // Demo/tutorial mode: ONLY the three demo questions, in fixed order.
+  // Demo/tutorial mode: ONLY the three demo questions, in fixed easy→medium→hard order.
   if (mode === "demo" || mode === "tutorial") return res.json(tutorials);
-  // Main game: regular questions only (demo questions excluded), shuffled.
-  const shuffled = regular.slice().sort(() => Math.random() - 0.5);
-  const n = count ? Math.min(parseInt(count, 10) || 10, regular.length) : regular.length;
-  res.json(shuffled.slice(0, n));
+  // Main game: 1 easy, then 2 medium, then 2 hard — a fresh random sample from each
+  // difficulty bucket every run, so the same questions don't keep recurring.
+  const shuf = a => a.slice().sort(() => Math.random() - 0.5);
+  const byDiff = d => regular.filter(q => q.difficulty === d);
+  const composition = [["easy", 1], ["medium", 2], ["hard", 2]];
+  const usedIds = new Set();
+  let sel = [];
+  for (const [diff, k] of composition) {
+    const picked = shuf(byDiff(diff)).slice(0, k);
+    picked.forEach(q => usedIds.add(q.id));
+    sel = sel.concat(picked);
+  }
+  // Backfill if a difficulty bucket is too small, to keep the run length stable.
+  const target = count ? (parseInt(count, 10) || 5) : 5;
+  if (sel.length < target) {
+    sel = sel.concat(shuf(regular.filter(q => !usedIds.has(q.id))).slice(0, target - sel.length));
+  }
+  res.json(sel);
 });
 
 app.put("/api/questions", requireAdmin, (req, res) => {
