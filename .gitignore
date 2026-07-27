@@ -1,0 +1,10 @@
+node_modules/
+.venv/
+.DS_Store
+*.onnx
+.env
+# generated on first boot from seed-questions.js / seed-plates.js
+data/questions.json
+data/plates.json
+data/scores.json
+data/runs.json

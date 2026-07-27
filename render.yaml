@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: embedguessr-kuaishou
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    # For a leaderboard that survives redeploys, uncomment a persistent disk:
+    # disk:
+    #   name: embedguessr-data
+    #   mountPath: /opt/render/project/src/data
+    #   sizeGB: 1
