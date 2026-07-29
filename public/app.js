@@ -27,6 +27,10 @@ const LANG = {
     offManifold: "off-manifold", ambiguous: "ambiguous / mixed",
     verdicts: { bull: "Bullseye 🎯", dead: "Dead-on", lobe: "Right lobe", hood: "Wrong neighbourhood", far: "Way off" },
     switchLang: "中文",
+    goldTier: "GOLD", silverTier: "SILVER", bronzeTier: "BRONZE",
+    mainPrize: "Main Prize!", secondPrize: "Second Prize",
+    prizeSubGold: "3200+ points \u2014 claim your figurine", prizeSubSilver: "2200+ points \u2014 claim your bag",
+    bronzeHint: "Score 2200+ for a bag \u00b7 3200+ for a figurine", awesome: "Awesome!",
   },
   zh: {
     title: "EmbedGuessr", sub: "神经网络把每张图片归档到了它自己脑中的地图上。<br>把图钉插下去——你有多了解这个模型？",
@@ -46,6 +50,10 @@ const LANG = {
     offManifold: "脱嵌入流形", ambiguous: "模糊 / 混合",
     verdicts: { bull: "正中靶心 🎯", dead: "精准命中", lobe: "区域正确", hood: "区域错误", far: "差太远了" },
     switchLang: "English",
+    goldTier: "\u91d1\u724c", silverTier: "\u94f6\u724c", bronzeTier: "\u94dc\u724c",
+    mainPrize: "\u5927\u5956\uff01", secondPrize: "\u4e8c\u7b49\u5956",
+    prizeSubGold: "3200 \u5206\u4ee5\u4e0a \u2014 \u9886\u53d6\u516c\u4ed4\u624b\u529e", prizeSubSilver: "2200 \u5206\u4ee5\u4e0a \u2014 \u9886\u53d6\u80cc\u5305",
+    bronzeHint: "2200 \u5206\u4ee5\u4e0a\u53ef\u83b7\u5f97\u80cc\u5305\uff0c3200 \u5206\u4ee5\u4e0a\u53ef\u83b7\u5f97\u516c\u4ed4\u624b\u529e", awesome: "\u592a\u68d2\u4e86\uff01",
   }
 };
 let lang = localStorage.getItem("eg:lang") || "en";
@@ -238,6 +246,42 @@ function showScorePopup(pts, tier) {
   overlay.addEventListener("click", () => { overlay.classList.add("fade-out"); setTimeout(()=>overlay.remove(), 350); });
   setTimeout(() => overlay.classList.add("fade-out"), 2200);
   setTimeout(() => overlay.remove(), 2600);
+}
+
+/* ── fullscreen confetti (prize popups) ── */
+function spawnConfettiFullscreen(intensity){
+  const canvas=document.createElement("canvas");canvas.className="confetti-canvas confetti-fullscreen";
+  const dpr=devicePixelRatio||1,cw=innerWidth,ch=innerHeight;
+  canvas.width=cw*dpr;canvas.height=ch*dpr;
+  canvas.style.cssText="position:fixed;inset:0;width:"+cw+"px;height:"+ch+"px;pointer-events:none;z-index:320";
+  document.body.appendChild(canvas);
+  const cctx=canvas.getContext("2d");cctx.setTransform(dpr,0,0,dpr,0,0);
+  const colors=["#FF4906","#0E97AB","#7C3AED","#C70057","#159048","#C08608","#FF7A3D"];
+  const count=Math.round(160*intensity),particles=[];
+  for(let i=0;i<count;i++)particles.push({x:Math.random()*cw,y:-20-Math.random()*ch*0.6,vx:(Math.random()-0.5)*5,vy:2+Math.random()*4.5,w:5+Math.random()*8,h:4+Math.random()*6,color:colors[(Math.random()*colors.length)|0],rot:Math.random()*360,vr:(Math.random()-0.5)*12});
+  const t0=performance.now(),dur=3200;
+  (function frame(now){const k=clamp((now-t0)/dur,0,1);cctx.clearRect(0,0,cw,ch);
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.rot+=p.vr;const life=1-k*k;if(life<=0)return;
+      cctx.save();cctx.translate(p.x,p.y);cctx.rotate(p.rot*Math.PI/180);cctx.globalAlpha=life;cctx.fillStyle=p.color;cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cctx.restore();});
+    cctx.globalAlpha=1;if(k<1)requestAnimationFrame(frame);else canvas.remove();})(t0);
+}
+const TROPHY_SVG='<svg viewBox="0 0 64 64" width="76" height="76" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8h24v14a12 12 0 0 1-24 0V8z" fill="currentColor"/><path d="M20 12H10a2 2 0 0 0-2 2v2c0 6 4 10 10 10" stroke="currentColor" stroke-width="3" fill="none"/><path d="M44 12h10a2 2 0 0 1 2 2v2c0 6-4 10-10 10" stroke="currentColor" stroke-width="3" fill="none"/><rect x="28" y="34" width="8" height="10" fill="currentColor"/><rect x="20" y="44" width="24" height="6" rx="2" fill="currentColor"/><rect x="24" y="50" width="16" height="5" rx="2" fill="currentColor"/></svg>';
+const MEDAL_SVG='<svg viewBox="0 0 64 64" width="68" height="68" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 4 L32 30 L20 30 Z" fill="currentColor" opacity=".55"/><path d="M42 4 L32 30 L44 30 Z" fill="currentColor" opacity=".85"/><circle cx="32" cy="42" r="16" fill="currentColor" opacity=".16"/><circle cx="32" cy="42" r="16" stroke="currentColor" stroke-width="3" fill="none"/><circle cx="32" cy="42" r="9" fill="currentColor"/></svg>';
+function showPrizePopup(tier){
+  const isGold=tier==="gold";
+  const color=isGold?"var(--gold)":"#8A93A6";
+  const overlay=document.createElement("div");
+  overlay.className="score-popup-overlay fullscreen-popup prize-popup-overlay "+(isGold?"prize-gold":"prize-silver");
+  overlay.innerHTML='<div class="score-popup-card fullscreen-popup-card prize-popup-card">'
+    +'<div class="prize-icon-wrap" style="color:'+color+'">'+(isGold?TROPHY_SVG:MEDAL_SVG)+'</div>'
+    +'<div class="prize-title" style="color:'+color+'">'+t(isGold?"mainPrize":"secondPrize")+'</div>'
+    +'<div class="prize-sub">'+t(isGold?"prizeSubGold":"prizeSubSilver")+'</div>'
+    +'<button class="btn btn-p prize-dismiss">'+t("awesome")+'</button></div>';
+  document.body.appendChild(overlay);
+  if(isGold) spawnConfettiFullscreen(1.4);
+  const dismiss=()=>{overlay.classList.add("fade-out");setTimeout(()=>overlay.remove(),350);};
+  overlay.querySelector(".prize-dismiss").onclick=dismiss;
+  overlay.addEventListener("click",e=>{if(e.target===overlay)dismiss();});
 }
 
 /* ── ranking overlay ── */
@@ -441,14 +485,14 @@ function showReveal(){const p=plate(),s=RUN.scores[RUN.idx];if(!s)return;const c
 async function renderSummary(){
   if(!RUN||!RUN.scores.length){location.hash="#/";return;}
   const total=RUN.scores.reduce((a,b)=>a+(b?b.pts:0),0),max=N()*1000;
-  const pct=total/max,grade=pct>.82?["S","grade-s"]:pct>.64?["A","grade-a"]:pct>.46?["B","grade-b"]:["C","grade-c"];
+  const tier=total>=3200?"gold":total>=2200?"silver":"bronze";
   const best=RUN.scores.reduce((a,b)=>(b&&b.pts>a.pts?b:a),{pts:-1});
   const worst=RUN.scores.reduce((a,b)=>(b&&b.pts<a.pts?b:a),{pts:1e9});
   const avgD=(RUN.scores.reduce((a,b)=>a+(b?b.d:0),0)/RUN.scores.length).toFixed(1);
   el("navRight").innerHTML=`<div style="display:flex;gap:10px;align-items:center"><button class="btn btn-g btn-sm" onclick="window.__toggleLang()">${t("switchLang")}</button><div class="nav-meta">${t("runComplete")}</div></div>`;
   el("app").innerHTML=`
   <div class="wrap">
-    <div class="sum-hero"><div class="sum-label">${t("finalScore")}</div><div class="sum-score">${total.toLocaleString()} <span class="max">/ ${max.toLocaleString()}</span></div><div class="grade ${grade[1]}">${grade[0]}</div></div>
+    <div class="sum-hero"><div class="sum-label">${t("finalScore")}</div><div class="sum-score">${total.toLocaleString()} <span class="max">/ ${max.toLocaleString()}</span></div><div class="grade grade-${tier}">${t(tier+"Tier")}</div>${tier==="bronze"?`<div class="prize-inline-note">${t("bronzeHint")}</div>`:""}</div>
     <div class="divider"></div>
     <div class="stat-row">
       <div class="glass stat-card"><div class="stat-val" style="color:var(--green)">${best.pts<0?"—":best.pts.toLocaleString()}</div><div class="stat-lbl">${t("best")}</div></div>
@@ -462,6 +506,7 @@ async function renderSummary(){
   </div>`;
   el("saveBtn").onclick=async()=>{el("saveBtn").disabled=true;el("saveBtn").textContent=t("saving");const res=await postScore({name:PLAYER_NAME,score:total,difficulty:"mixed",plates:RUN.scores.map(s=>({name:s.name,pts:s.pts}))});el("saveBtn").textContent=t("saved");el("saveNote").textContent=(res.offline?"Saved locally. ":"")+(res.rank?"#"+res.rank+" on the board.":"");};
   el("againBtn").onclick=()=>{location.hash="#/";};
+  if(RUN.mode!=="demo"&&(tier==="gold"||tier==="silver")) setTimeout(()=>showPrizePopup(tier),350);
 }
 
 /* ── Leaderboard ── */
